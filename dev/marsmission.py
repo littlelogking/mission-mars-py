@@ -2,7 +2,7 @@ import math as math
 import numpy as np
 from enum import Enum
 from numpy import *
-from os import *
+#from os import *
 import rocket as mmr
 
 #enumeration for constants
@@ -109,7 +109,8 @@ class marsmission(object):
     
     def setdefaultstate(self):
         control={}
-        control[ctl.DT]=float(3000)
+        #control[ctl.DT]=float(3000)
+        control[ctl.DT]=float(0.00001) #keep sim running vvve....eeeer..rrrr...yyyy slow.....llllll...y
         control[ctl.NS]=100000 
         control[ctl.SINT]=100000
         control[ctl.FX]=float(0) #FX FY forces in x and Y direction
@@ -141,7 +142,8 @@ class marsmission(object):
         state[st.X]=float(0.0)
         state[st.Y]=float(6.3781e6+50000)
         state[st.VX]=float(90.0+state[st.VXE])
-        state[st.VY]=float(40000.0+state[st.VYE])
+        #state[st.VY]=float(40000.0+state[st.VYE])
+        state[st.VY]=float(13000.0+state[st.VYE])
         
         #mars
         state[st.XMA]=float(0.0)
@@ -177,7 +179,7 @@ class marsmission(object):
         fy=self.control[ctl.FY]
         totalf=math.sqrt(fx**2+fy**2)
         if self.rocket.payload[mmr.payld.FUEL]>0:
-            fuelused=10*self.control[ctl.DT]*totalf*self.rocket.rockprop[mmr.rck.NE]*self.rocket.rockprop[mmr.rck.EP]/self.maxforce        
+            fuelused=0.0000001*self.control[ctl.DT]*totalf*self.rocket.rockprop[mmr.rck.NE]*self.rocket.rockprop[mmr.rck.EP]/self.maxforce        
             #update fuel remaining
             self.rocket.payload[mmr.payld.FUEL]=self.rocket.payload[mmr.payld.FUEL]-fuelused
         else:
@@ -186,23 +188,23 @@ class marsmission(object):
         #revise maxforce if not much fuel remaining!
         fuelremaining=self.rocket.payload[mmr.payld.FUEL]
         fuelused=10*self.control[ctl.DT]*totalf*self.rocket.rockprop[mmr.rck.NE]*self.rocket.rockprop[mmr.rck.EP]*totalf/self.maxforce
-        if fuelused>fuelremaining:
+        if (fuelused>fuelremaining) & (self.control[ctl.DT]>0):
                 #recalculatemax force
                 self.maxforce=fuelremaining/(10*self.control[ctl.DT]*self.rocket.rockprop[mmr.rck.NE]*self.rocket.rockprop[mmr.rck.EP])
         
         
         #update remaining oxygen
-        self.rocket.payload[mmr.payld.OXY]=self.rocket.payload[mmr.payld.OXY]-0.0001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]
+        self.rocket.payload[mmr.payld.OXY]=self.rocket.payload[mmr.payld.OXY]-0.0000001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]
         
         #update water  #plants use water too!
-        self.rocket.payload[mmr.payld.H2O]=self.rocket.payload[mmr.payld.H2O]-0.0001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]        
-        self.rocket.payload[mmr.payld.H2O]=self.rocket.payload[mmr.payld.H2O]-0.00001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.PLNT]        
+        self.rocket.payload[mmr.payld.H2O]=self.rocket.payload[mmr.payld.H2O]-0.0000001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]        
+        self.rocket.payload[mmr.payld.H2O]=self.rocket.payload[mmr.payld.H2O]-0.00000001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.PLNT]        
         
         #update food
-        self.rocket.payload[mmr.payld.FOOD]=self.rocket.payload[mmr.payld.FOOD]-0.0001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]        
+        self.rocket.payload[mmr.payld.FOOD]=self.rocket.payload[mmr.payld.FOOD]-0.00000001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.CREW]        
         
         #plants make oxygen 
-        self.rocket.payload[mmr.payld.OXY]=self.rocket.payload[mmr.payld.OXY]+0.000005*self.control[ctl.DT]*self.rocket.payload[mmr.payld.PLNT]
+        self.rocket.payload[mmr.payld.OXY]=self.rocket.payload[mmr.payld.OXY]+0.00000001*self.control[ctl.DT]*self.rocket.payload[mmr.payld.PLNT]
         
         #plants use water
         
@@ -239,7 +241,9 @@ class marsmission(object):
         gt=self.gravaccel(newstate[st.X],newstate[st.XMA],newstate[st.Y],newstate[st.YMA],self.const[cnst.MMARS]) #moon contrib
         gx=gx+gt[0];
         gy=gy+gt[1]; 
-                       
+
+        massr=self.rocket.updatemass()
+        self.control[ctl.MR]=massr                       
         gx=gx+self.control[ctl.FX]/self.control[ctl.MR]
         gy=gy+self.control[ctl.FY]/self.control[ctl.MR]
        
@@ -366,7 +370,8 @@ class marsmission(object):
         gravvec=(gx,gy)
         return gravvec
     
-    def orbitalspeed(self, x1,y1,vx1,vy1,x2,y2,vx2,vy2,mass,const):
+    #def orbitalspeed(self, x1,y1,vx1,vy1,x2,y2,vx2,vy2,mass,const):
+    def orbitalspeed(self, x1,y1,vx1,vy1,x2,y2,vx2,vy2,mass):
         #[speed, relspeed, orbspeed] = orbitalspeed(x1,y1,vx1,vy1,x2,y2,vx2,vy2,mass,consts)
         #%% orbitalspeed
         #%   Object 1 is at x1,y1,vx1,vy1
@@ -376,11 +381,14 @@ class marsmission(object):
         speed=math.sqrt(vx1**2+vx2**2);
         sep=math.sqrt((x1-x2)**2+(y1-y2)**2);
 
-        orbspeed=const[ cnst.G]*mass/sep;
+        orbspeed=self.const[ cnst.G]*mass/sep;
         orbspeed=math.sqrt(orbspeed);
         
-        orbitalspeed=(speed,relspeed,orbspeed)
-        return orbitalspeed
+        #orbitalspeed=(speed,relspeed,orbspeed)
+        #return orbitalspeed
+        
+        return speed,relspeed,orbspeed
+        
     
     def orbitalangle(self,x1,y1,vx1,vy1,x2,y2,vx2,vy2):
         #function [angle] = orbitalangle(x1,y1,vx1,vy1,x2,y2,vx2,vy2)
@@ -401,13 +409,20 @@ class marsmission(object):
     
     def savemission(self, filename):
         status=0
-        fd = open(filename, "w")
+        fd = open(filename,'w')
+        fouts=""
         for mst in st:
             val=self.state[mst]
-            fouts=repr(val)+' '
+            fouts=fouts+repr(val)+' '
         for mctl in ctl:
             val=self.control[mctl]
-            fouts=repr(val)+' '
+            fouts=fouts+repr(val)+' '
+        for rp in mmr.rck:
+            val=self.rocket.rockprop[rp]
+            fouts=fouts+repr(val)+' '
+        for rpay in mmr.payld:
+            val=self.rocket.payload[rpay]
+            fouts=fouts+repr(val)+' '
         fouts=fouts+'\n'
         print(fouts)
         fd.write(fouts)
@@ -422,17 +437,31 @@ class marsmission(object):
         status=0
         t1a=np.loadtxt(filename)
         asz=t1a.size
-        t1=t1a[1:asz,0]
+        t1=t1a[0:asz]
         control={}
         state={}
+        rockprop={}
+        rockpayl={}
+        
         for mst in st:
             state[mst]=t1[ind]
             ind=ind+1
         for mctl in ctl:
             control[mctl]=t1[ind]
             ind=ind+1
+        for rp in mmr.rck:
+            rockprop[rp]=t1[ind]
+            #val=self.rocket.rockprop[rp]
+            ind=ind+1
+        for rpay in mmr.payld:
+            rockpayl[rpay]=t1[ind]
+            #val=self.rocket.payload[rpay]
+            ind=ind+1
         self.control=control
         self.state=state
+        self.rocket.payload=rockpayl
+        self.rocket.rockprop=rockprop
+        self.rocket.updatemass()
         return status
         
         
